@@ -1,17 +1,14 @@
-// const PHYSICAL_MEMORY_BYTES = 100
-// const PAGE_SIZE = 4
-
 
 class MemoryManager {
     constructor(totalPhysicalMemoryBytes, pageSize) {
         this.physicalMemSize = totalPhysicalMemoryBytes
         this.pageSize = pageSize
 
-        this.pageTable = {}
-        this.totalAvailableMem = totalPhysicalMemoryBytes
-        this.allocatedAddresses = [{ start: 11, end: 19 }, { start: 26, end: 29 }]
+        this.processPageTables = {}
+        this.totalAvailableMem = totalPhysicalMemoryBytes - 8
+        this.allocatedAddresses = [{ start: 4, end: 8 }, { start: 12, end: 16 }]
         // this.availableAddresses = [{ start: 0, end: totalPhysicalMemoryBytes}]
-        this.availableAddresses = [{ start: 0, end: 10}, {start: 20, end: 25}, {start: 30, end: 100}]
+        this.availableAddresses = [{ start: 0, end: 3}, {start: 9, end: 11}, {start: 17, end: 20}]
     }
 
     print() {
@@ -19,53 +16,92 @@ class MemoryManager {
         console.log('Page Size:', this.pageSize)
         console.log('Allocated Addresses:', this.allocatedAddresses)
         console.log('Available Addresses:', this.availableAddresses)
+        console.log('PageTables: ', JSON.stringify(this.processPageTables, undefined, 2 ))
     }
 
-    allocateBlocks(blocks) {
-        blocks.forEach( block => {
-            this.allocatedAddresses.push(block)
-            this.totalAvailableMem -= block.end - block.start
+    requestMemory(processId, numBytes) {
+        const pages = Math.ceil( numBytes / this.pageSize )
+        const totalBytesReq = pages * this.pageSize
+        console.log(`totalBytesReq: ${totalBytesReq} totalPages: ${pages}`)
+        if ( totalBytesReq > this.totalAvailableMem ) {
+            return false
+        }
+
+        this.nextLogicalAddress++
+        const blocks = this._allocatePhysicalMem(pages)
+        this.processPageTables[processId] = this._generatePageTable(blocks)
+        return true
+    }
+
+    // page tables
+
+    _generatePageTable(pages, blocks) {
+        const pageTable = []
+        let { start, end } = blocks.shift()
+        for (let i=0;i<pages; i++) {
+            if ( start > end ) {
+                const block = blocks.shift()
+                start = block.start
+                end = block.end
+            }
+            pageTable.push({
+                page: i,
+                frame: start,
+            })
+            start += 1
+        }
+        return pageTable
+    }
+
+    // physical memory
+
+    _allocateFrames(frames) {
+        frames.forEach( frame => {
+            this.allocatedAddresses.push(frame)
+            this.totalAvailableMem -= (frame.end - frame.start) * this.pageSize
         })
         this.allocatedAddresses = this.allocatedAddresses.sort((a,b) => a.start - b.start)
-        return blocks
+        return frames
   }
 
-    removeAllocatedAddresses() {
+    _removeAllocatedAddresses() {
         this.availableAddresses = this.availableAddresses
             .filter( addr => addr.start !== -1 )
             .sort((a,b) => a.start - b.start)
     }
 
-    allocateMemBytes(numBytes) {
-        let blockStart, blockEnd
+    _allocatePhysicalMem(numFrames) {
+        let frameStart, frameEnd
         let allocated = 0
-        const blocks = []
+        const frames = []
 
         for (let i=0; i < this.availableAddresses.length; i++) {
-        const block = this.availableAddresses[i]
-        console.log('iteration ',i,' blocks ', blocks)
-        if ( blockStart === undefined ) {
-            blockStart = block.start
-            blockEnd = block.start + (numBytes - allocated)
-        }
+            const frame = this.availableAddresses[i]
+            if ( frameStart === undefined ) {
+                frameStart = frame.start
+                frameEnd = frame.start + (numFrames - allocated)
+            }
 
-        // remove available blocks
-        if ( blockEnd <= block.end ) {
-            block.start = blockEnd + 1
-            break
-        }
-        // mark block for deletion
-        block.start = -1
+            // decrement frame capacity
+            if ( frameEnd <= frame.end ) {
+                frame.start = frameEnd
+                if ( frame.start === frame.end ) {
+                    frame.start = -1
+                }
+                break
+            }
+            // mark frame for deletion
+            frame.start = -1
 
-        blockEnd = block.end
-        allocated = blockEnd - blockStart
-        blocks.push({ start: blockStart, end: blockEnd })
-        blockStart = undefined
-        blockEnd = undefined
+            frameEnd = frame.end
+            allocated = frameEnd - frameStart
+            frames.push({ start: frameStart, end: frameEnd })
+            frameStart = undefined
+            frameEnd = undefined
         }
-        this.removeAllocatedAddresses()
-        blocks.push({ start: blockStart, end: blockEnd })
-        return this.allocateBlocks(blocks)
+        this._removeAllocatedAddresses()
+        frames.push({ start: frameStart, end: frameEnd })
+        return this._allocateFrames(frames)
     }
 }
 

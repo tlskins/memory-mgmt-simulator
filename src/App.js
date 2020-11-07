@@ -3,10 +3,8 @@ import './App.css';
 import MemoryManager from './memoryManager';
 
 function App() {
-  const mm = new MemoryManager( 100, 4 )
-  mm.allocateMemBytes(12)
-  mm.print()
-  mm.allocateMemBytes(13)
+  const mm = new MemoryManager( 40, 2 )
+  mm.requestMemory("P1", 6)
   mm.print()
 
   return (
