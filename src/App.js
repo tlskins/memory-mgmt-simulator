@@ -1,7 +1,7 @@
-import logo from './logo.svg';
 import './App.css';
 // import MemoryManager from './memoryManager';
 import { Component } from 'react'
+import './tailwind.output.css'
 
 class App extends Component {
   state = {
@@ -132,19 +132,30 @@ class App extends Component {
     return [frames, allocatedAddresses, availableAddresses, totalAvailableMem]
   }
 
+  physicalMemory = () => {
+    const {
+      allocatedAddresses: alloc,
+      availableAddresses: avail,
+    } = this.state
+    return [
+      ...alloc.map( addr => ({ ...addr, allocated: true })),
+      ...avail.map( addr => ({ ...addr, allocated: false })), 
+    ].sort((a,b) => a.start - b.start)
+  }
+
   render() {
     const {
       physicalMemSize,
       pageSize,
-      allocatedAddresses,
-      availableAddresses,
       processPageTables,
     } = this.state
 
+    const physicalMemory = this.physicalMemory()
+
     return(
       <div className="App">
-        <div className="flex-row w-full p-8">
-          <div className="flex flex-col">
+        <div className="flex flex-col w-full p-8">
+          <div className="w-full">
             <h2>
               Total Memory: <span> { physicalMemSize } </span> bytes
             </h2>
@@ -152,41 +163,55 @@ class App extends Component {
               Page Size: <span> { pageSize } </span> bytes
             </h2>
           </div>
-        </div>
-        
-        <div className="flex-row w-full p-8">
-          <h2>Allocated Frames</h2>
-          { allocatedAddresses.map((addr, i) => 
-            <div key={i}>
-              Start: { addr.start }
-              End: { addr.end }
-            </div>
-          )}
-        </div>
 
-        <div className="flex-row w-full p-8">
-          <h2>Available Frames</h2>
-          { availableAddresses.map((addr, i) => 
-            <div key={i}>
-              Start: { addr.start }
-              End: { addr.end }
-            </div>
-          )}
-        </div>
-
-        <div className="flex-row w-full p-8">
-          <h2>Page Tables</h2>
-          { Object.entries( processPageTables ).map(([processId, pageTable], i) => 
-            <div key={i}>
-              Process: { processId }
-              { pageTable.map((table,j) => 
-                <div key={j}>
-                  Page: { table.page }
-                  Frame: { table.frame }
+          <div className="flex flex-row">
+            <div className="flex-col w-4/12 p-8">
+              <h2>Logical Memory</h2>
+              { physicalMemory.map((addr, i) => 
+                <div key={i} 
+                  className={`flex-row rounded bg-${addr.allocated ? 'blue' : 'orange'}-200 w-24 p-2 m-2`}
+                >
+                  <div>
+                    Start: { addr.start }
+                  </div>
+                  <div>
+                    End: { addr.end }
+                  </div>
                 </div>
               )}
             </div>
-          )}
+
+            <div className="flex-col w-4/12 p-8">
+              <h2>Page Tables</h2>
+              { Object.entries( processPageTables ).map(([processId, pageTable], i) => 
+                <div key={i}>
+                  Process: { processId }
+                  { pageTable.map((table,j) => 
+                    <div key={j}>
+                      Page: { table.page }
+                      Frame: { table.frame }
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-col w-4/12 p-8">
+              <h2>Physical Memory</h2>
+              { physicalMemory.map((addr, i) => 
+                <div key={i} 
+                  className={`flex-row rounded bg-${addr.allocated ? 'blue' : 'orange'}-200 w-24 p-2 m-2`}
+                >
+                  <div>
+                    Start: { addr.start }
+                  </div>
+                  <div>
+                    End: { addr.end }
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     )
