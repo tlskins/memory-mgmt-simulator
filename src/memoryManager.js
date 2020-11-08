@@ -29,7 +29,7 @@ class MemoryManager {
 
         this.nextLogicalAddress++
         const blocks = this._allocatePhysicalMem(pages)
-        this.processPageTables[processId] = this._generatePageTable(blocks)
+        this.processPageTables[processId] = this._generatePageTable(pages, blocks)
         return true
     }
 
