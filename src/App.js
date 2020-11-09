@@ -5,22 +5,54 @@ import './tailwind.output.css'
 
 class App extends Component {
   state = {
-    physicalMemSize: undefined,
-    pageSize: undefined,
-    totalAvailFrames: undefined,
-    memorySet: false,
+    // physicalMemSize: undefined,
+    // pageSize: undefined,
+    // availFrames: undefined,
+    // memorySet: false,
+    physicalMemSize: 40,
+    pageSize: 2,
+    availFrames: 20,
+    memorySet: true,
     running: false,
 
     errorMsg: undefined,
-    processPageTables: {},
-    allocated: [],
-    available: [],
-    
-    processes: [],
+    pageTables: {},
+    hoverId: undefined,
+    // memory: [],
+    memory: new Array(20),
+    // processes: [],
+    processes: [
+      { 
+        processId: "one",
+        numBytes: 20,
+        numFrames: 10,
+        timeUnits: 2,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "two",
+        numBytes: 20,
+        numFrames: 10,
+        timeUnits: 3,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "three",
+        numBytes: 8,
+        numFrames: 4,
+        timeUnits: 4,
+        timeRan: 0,
+        status: 'Waiting',
+      }
+    ],
+    currTime: 0,
+
+    // new process form
     processId: '',
     numBytes: 0,
     timeUnits: 0,
-    currTime: 0,
   }
 
   onAddProcess = () => {
@@ -40,91 +72,146 @@ class App extends Component {
     })
   }
 
-  advanceTime = () => {
-    const { currTime, totalAvailFrames } = this.state
-    let allocFrames = 0
-    const toAllocate = []
+  advanceSystemClock = () => {
+    let { currTime, memory, pageTables } = this.state
+    const [processes, allocateProcs, deallocateProcs, availFrames] = this.advanceProcesses()
+    console.log('alloc / dealloc', allocateProcs, deallocateProcs)
+
+    const afterDealloc = this.deallocateMemory(memory, deallocateProcs, pageTables)
+    memory = afterDealloc[0]
+    pageTables = afterDealloc[1]
+    console.log('afterDealloc', memory, pageTables)
+
+    const afterAlloc = this.allocateMemory(memory, allocateProcs, pageTables)
+    memory = afterAlloc[0]
+    pageTables = afterAlloc[1]
+    console.log('afteralloc', memory, pageTables)
+
+
+    currTime++
+    this.setState({
+      memory,
+      pageTables,
+      processes,
+      availFrames,
+      currTime,
+    })
+  }
+
+  advanceProcesses = () => {
+    let { availFrames } = this.state
+    const allocate = []
+    const deallocate = []
+
     const processes = this.state.processes.map( process => {
       if ( process.status === 'Running' ) {
         process.timeRan += 1
         if ( process.timeRan >= process.timeUnits ) {
           process.status = 'Finished'
+          availFrames += process.numFrames
+          deallocate.push([process.processId, process.numFrames])
         }
         return { ...process }
       }
-      if ( process.status === 'Waiting' && process.numFrames + allocFrames <= totalAvailFrames ) {
-        allocFrames += process.numFrames
-        toAllocate.push(process)
+
+      if ( process.status === 'Waiting' && process.numFrames <= availFrames ) {
+        availFrames -= process.numFrames
+        allocate.push([process.processId, process.numFrames])
         return { ...process, status: 'Running' }
       }
+
       return process
     })
-    this.setState({ currTime: currTime+1, processes })
-    this.onAllocateProcesses(processes)
+
+    return [processes, allocate, deallocate, availFrames]
   }
 
-  onAllocateProcesses(processes) {
-    let {
-      processPageTables,
-      available,
-      allocated,
-      totalAvailFrames,
-    } = this.state
+  allocateMemory(memory, processes, pageTables) {
+    if ( processes.length === 0 ) {
+      return [memory, pageTables]
+    }
+    let idx = 0
+    let [processId, numFrames] = processes[idx]
+    let currAlloc = 0
+    let page = 0
+    for(let i=0;i<memory.length;i++) {
+      if (!memory[i]) {
+        // add to page table
+        if (!pageTables[processId]) {
+          pageTables[processId] = []
+        }
+        pageTables[processId].push({ page, frame: i })
+        page++
 
-    let frames = []
-    let newAlloc = [...allocated]
-    let newAvail = [...available]
-    let newTotal = totalAvailFrames
-    processes.forEach(({ numFrames, processId }) => {
-      const result = calculateFrames(
-        numFrames,
-        newAvail,
-        newAlloc,
-        newTotal,
-      )
-      frames = [...frames, ...result[0]]
-      newAlloc = result[1]
-      newAvail = result[2]
-      newTotal = result[3]
-      console.log('calc:', frames, newAlloc, newAvail, newTotal)
-      processPageTables = {
-        ...processPageTables,
-        [processId]: generatePageTable(numFrames, frames)
+        // allocate memory
+        memory[i] = processId
+        currAlloc++
+
+        // next process if all frames are allocated
+        if ( currAlloc === numFrames ) {
+          idx++
+          if ( idx === processes.length ) {
+            break
+          }
+          [processId, numFrames] = processes[idx]
+        }
       }
+    }
+    return [memory, pageTables]
+  }
+
+  deallocateMemory(memory, processes, pageTables) {
+    if ( processes.length === 0 ) {
+      return [memory, pageTables]
+    }
+    const ids = processes.map( ([id,_]) => id )
+    // remove from page table
+    ids.forEach( id => {
+      console.log('deleting', id)
+      delete pageTables[id]
     })
-    
-    this.setState({
-      allocated: newAlloc,
-      available: newAvail,
-      totalAvailFrames: newTotal,
-      processPageTables,
-    })
+    // deallocate memory
+    for(let i=0;i<memory.length;i++) {
+      if (ids.includes(memory[i])) {
+        memory[i] = undefined
+      }
+    }
+    return [memory, pageTables]
   }
 
   render() {
     const {
-      allocated,
-      available,
       currTime,
       errorMsg,
+      hoverId,
       physicalMemSize,
       pageSize,
-      processPageTables,
+      pageTables,
       processId,
       processes,
       numBytes,
       running,
+      memory,
       memorySet,
       timeUnits,
-      totalAvailFrames,
+      availFrames,
     } = this.state
 
-    const physicalMemory = [
-      ...allocated.map( a => ({ ...a, allocated: true })),
-      ...available.map( a => ({ ...a, allocated: false })), 
-    ].sort((a,b) => a.start - b.start)
-
-    console.log('render', running, memorySet)
+    let currId
+    let start = 0
+    const memBlocks = []
+    memory.forEach((processId, addr) => {
+      if (!currId) {
+        currId = processId
+      }
+      
+      if (processId !== currId) {
+        memBlocks.push({ processId: currId, start, end: addr -1 })
+        start = addr
+        currId = processId
+      }
+    })
+    memBlocks.push({ processId: currId, start, end: memory.length - 1 })
 
     return(
       <div className="App">
@@ -166,7 +253,7 @@ class App extends Component {
 
               { memorySet &&
                 <h2 className="font-sans m-2">
-                  Available Pages: { totalAvailFrames }
+                  Available Pages: { availFrames }
                 </h2>
               }
               { !memorySet &&
@@ -185,10 +272,12 @@ class App extends Component {
                       this.setState({ errorMsg: 'Page size must be a multiple of 2' })
                       return
                     }
+                    const totalFrames = physicalMemSize / pageSize
                     this.setState({
                       memorySet: true,
-                      available: [{start: 0, end: physicalMemSize / pageSize }],
-                      totalAvailFrames: physicalMemSize / pageSize,
+                      memory: new Array(totalFrames),
+                      totalFrames,
+                      availFrames: totalFrames,
                     })
                   }}
                 >
@@ -268,7 +357,8 @@ class App extends Component {
                     <th className="px-4 py-2">#</th>
                     <th className="px-4 py-2">Id</th>
                     <th className="px-4 py-2">Size (bytes)</th>
-                    <th className="px-4 py-2">Time</th>
+                    <th className="px-4 py-2">Total Time</th>
+                    <th className="px-4 py-2">Run Time</th>
                     <th className="px-4 py-2">Status</th>
                   </tr>
                   { processes.map((process, i) => 
@@ -279,6 +369,7 @@ class App extends Component {
                       <td className="border px-4 py-2"> { process.processId } </td>
                       <td className="border px-4 py-2"> { process.numBytes } </td>
                       <td className="border px-4 py-2"> { process.timeUnits } </td>
+                      <td className="border px-4 py-2"> { process.timeRan } </td>
                       <td className="border px-4 py-2"> { process.status } </td>
                     </tr>
                   )}
@@ -290,7 +381,7 @@ class App extends Component {
                   <div className="flex flex-row m-2">
                     <p className="m-2 w-32">Time { currTime } </p>
                     <button className="m-2 p-2 w-32 rounded-lg shadow bg-teal-300 hover:bg-blue-300 rounded"
-                      onClick={ this.advanceTime }
+                      onClick={ this.advanceSystemClock }
                     >
                       Advance Time
                     </button>
@@ -301,9 +392,9 @@ class App extends Component {
 
             <div className="flex-col w-4/12 p-8">
               <h2 className="text-xl underline">Logical Memory</h2>
-              { processes.map((process, i) => 
+              { processes.filter( p => p.status === 'Running' ).map((process, i) => 
                 <div key={i} 
-                  className={`flex-row rounded bg-orange-200 w-24 p-2 m-2`}
+                  className="flex-row rounded bg-blue-200 w-full p-2 m-2"
                 >
                   <div>
                     Id: { process.processId }
@@ -311,19 +402,36 @@ class App extends Component {
                   <div>
                     Size: { process.numBytes } Bytes
                   </div>
+                  <div>
+                    Pages: { process.numFrames }
+                  </div>
                 </div>
               )}
+              { availFrames > 0 &&
+                <div className="flex-row rounded bg-gray-200 w-full p-2 m-2">
+                  <div>
+                    Size: { availFrames * pageSize } Bytes
+                  </div>
+                  <div>
+                    Pages: { availFrames }
+                  </div>
+                </div>
+              }
             </div>
 
             <div className="flex-col w-4/12 p-8">
               <h2 className="text-xl underline">Page Tables</h2>
-              { Object.entries( processPageTables ).map(([processId, pageTable], i) => 
-                <div key={i}>
+              { Object.entries( pageTables ).map(([processId, pageTable], i) => 
+                <div key={i}
+                  className="rounded bg-gray-200 p-2 m-2"
+                  onMouseEnter={() => this.setState({ hoverId: processId })}
+                  onMouseLeave={() => this.setState({ hoverId: undefined })}
+                >
                   Process: { processId }
-                  { pageTable.map((table,j) => 
+                  { hoverId === processId && pageTable.map((table,j) => 
                     <div key={j}>
-                      Page: { table.page }
-                      Frame: { table.frame }
+                      <span className="mx-2">Page: { table.page }</span>
+                      <span className="mx-2">Frame: { table.frame }</span>
                     </div>
                   )}
                 </div>
@@ -332,18 +440,25 @@ class App extends Component {
 
             <div className="flex-col w-4/12 p-8">
               <h2 className="text-xl underline">Physical Memory</h2>
-              { physicalMemory.map((addr, i) => 
-                <div key={i} 
-                  className={`flex-row rounded bg-${addr.allocated ? 'blue' : 'orange'}-200 w-24 p-2 m-2`}
-                >
-                  <div>
-                    Start: { addr.start }
+              { 
+                memBlocks.map((block, i) => 
+                  <div key={i} 
+                    className={`flex-row rounded bg-${block.processId ? 'blue' : 'gray'}-200 w-full p-2 m-2`}
+                  >
+                    { block.processId &&
+                      <div>
+                        { block.processId }
+                      </div>
+                    }
+                    <div>
+                      Start: { block.start }
+                    </div>
+                    <div>
+                      End: { block.end }
+                    </div>
                   </div>
-                  <div>
-                    End: { addr.end }
-                  </div>
-                </div>
-              )}
+                )
+              }
             </div>
           </div>
         </div>
