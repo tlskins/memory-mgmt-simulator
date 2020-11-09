@@ -1,108 +1,50 @@
 
-class MemoryManager {
-    constructor(totalPhysicalMemoryBytes, pageSize) {
-        this.physicalMemSize = totalPhysicalMemoryBytes
-        this.pageSize = pageSize
-
-        this.processPageTables = {}
-        this.totalAvailableMem = totalPhysicalMemoryBytes - 8
-        this.allocatedAddresses = [{ start: 4, end: 8 }, { start: 12, end: 16 }]
-        // this.availableAddresses = [{ start: 0, end: totalPhysicalMemoryBytes}]
-        this.availableAddresses = [{ start: 0, end: 3}, {start: 9, end: 11}, {start: 17, end: 20}]
-    }
-
-    print() {
-        console.log('Total Memory:', this.physicalMemSize)
-        console.log('Page Size:', this.pageSize)
-        console.log('Allocated Addresses:', this.allocatedAddresses)
-        console.log('Available Addresses:', this.availableAddresses)
-        console.log('PageTables: ', JSON.stringify(this.processPageTables, undefined, 2 ))
-    }
-
-    requestMemory(processId, numBytes) {
-        const pages = Math.ceil( numBytes / this.pageSize )
-        const totalBytesReq = pages * this.pageSize
-        console.log(`totalBytesReq: ${totalBytesReq} totalPages: ${pages}`)
-        if ( totalBytesReq > this.totalAvailableMem ) {
-            return false
-        }
-
-        this.nextLogicalAddress++
-        const blocks = this._allocatePhysicalMem(pages)
-        this.processPageTables[processId] = this._generatePageTable(pages, blocks)
-        return true
-    }
-
-    // page tables
-
-    _generatePageTable(pages, blocks) {
-        const pageTable = []
-        let { start, end } = blocks.shift()
-        for (let i=0;i<pages; i++) {
-            if ( start > end ) {
-                const block = blocks.shift()
-                start = block.start
-                end = block.end
+export const calculateFrames = ( numFrames, availableAddresses, allocatedAddresses, totalAvailFrames ) => {
+    let allocFrames = 0
+    const frames = []
+    let available = []
+    let allocated = allocatedAddresses.map(({ start, end }) => ({ start, end }))
+    availableAddresses.forEach(({ start, end }) => {
+        if ( allocFrames < numFrames ) {
+            let frameEnd = start + (numFrames - allocFrames)
+            if ( frameEnd > end ) {
+                frameEnd = end
             }
-            pageTable.push({
-                page: i,
-                frame: start,
-            })
-            start += 1
+            frames.push({ start, end: frameEnd })
+            allocated.push({ start, end: frameEnd })
+            allocFrames += frameEnd - start
+            if ( frameEnd !== end ) {
+                available.push({ start: frameEnd, end })
+            }
         }
-        return pageTable
-    }
+        else {
+            available.push({ start, end })
+        }
+    })
 
-    // physical memory
-
-    _allocateFrames(frames) {
-        frames.forEach( frame => {
-            this.allocatedAddresses.push(frame)
-            this.totalAvailableMem -= (frame.end - frame.start) * this.pageSize
-        })
-        this.allocatedAddresses = this.allocatedAddresses.sort((a,b) => a.start - b.start)
-        return frames
+    return [
+        frames,
+        allocated.sort((a,b)=>a.start - b.start),
+        available.sort((a,b)=>a.start-b.start),
+        totalAvailFrames - allocFrames,
+    ]
   }
 
-    _removeAllocatedAddresses() {
-        this.availableAddresses = this.availableAddresses
-            .filter( addr => addr.start !== -1 )
-            .sort((a,b) => a.start - b.start)
-    }
 
-    _allocatePhysicalMem(numFrames) {
-        let frameStart, frameEnd
-        let allocated = 0
-        const frames = []
-
-        for (let i=0; i < this.availableAddresses.length; i++) {
-            const frame = this.availableAddresses[i]
-            if ( frameStart === undefined ) {
-                frameStart = frame.start
-                frameEnd = frame.start + (numFrames - allocated)
-            }
-
-            // decrement frame capacity
-            if ( frameEnd <= frame.end ) {
-                frame.start = frameEnd
-                if ( frame.start === frame.end ) {
-                    frame.start = -1
-                }
-                break
-            }
-            // mark frame for deletion
-            frame.start = -1
-
-            frameEnd = frame.end
-            allocated = frameEnd - frameStart
-            frames.push({ start: frameStart, end: frameEnd })
-            frameStart = undefined
-            frameEnd = undefined
+   export const generatePageTable = (numPages, frames) => {
+    const pageTable = []
+    let { start, end } = frames.shift()
+    for (let i=0;i<numPages; i++) {
+        if ( start > end ) {
+            const frame = frames.shift()
+            start = frame.start
+            end = frame.end
         }
-        this._removeAllocatedAddresses()
-        frames.push({ start: frameStart, end: frameEnd })
-        return this._allocateFrames(frames)
+        pageTable.push({
+            page: i,
+            frame: start,
+        })
+        start += 1
     }
-}
-
-export default MemoryManager
+    return pageTable
+  }
