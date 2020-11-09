@@ -1,5 +1,4 @@
 import './App.css';
-import { calculateFrames, generatePageTable } from './memoryManager';
 import { Component } from 'react'
 import './tailwind.output.css'
 
