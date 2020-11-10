@@ -4,48 +4,48 @@ import './tailwind.output.css'
 
 class App extends Component {
   state = {
-    // physicalMemSize: undefined,
-    // pageSize: undefined,
-    // availFrames: undefined,
-    // memorySet: false,
-    physicalMemSize: 40,
-    pageSize: 2,
-    availFrames: 20,
-    memorySet: true,
+    physicalMemSize: undefined,
+    pageSize: undefined,
+    availFrames: undefined,
+    memorySet: false,
+    // physicalMemSize: 40,
+    // pageSize: 2,
+    // availFrames: 20,
+    // memorySet: true,
     running: false,
 
     errorMsg: undefined,
     pageTables: {},
     hoverId: undefined,
-    // memory: [],
-    memory: new Array(20),
-    // processes: [],
-    processes: [
-      { 
-        processId: "one",
-        numBytes: 20,
-        numFrames: 10,
-        timeUnits: 2,
-        timeRan: 0,
-        status: 'Waiting',
-      },
-      { 
-        processId: "two",
-        numBytes: 20,
-        numFrames: 10,
-        timeUnits: 3,
-        timeRan: 0,
-        status: 'Waiting',
-      },
-      { 
-        processId: "three",
-        numBytes: 8,
-        numFrames: 4,
-        timeUnits: 4,
-        timeRan: 0,
-        status: 'Waiting',
-      }
-    ],
+    memory: [],
+    processes: [],
+    // memory: new Array(20),
+    // processes: [
+    //   { 
+    //     processId: "one",
+    //     numBytes: 20,
+    //     numFrames: 10,
+    //     timeUnits: 2,
+    //     timeRan: 0,
+    //     status: 'Waiting',
+    //   },
+    //   { 
+    //     processId: "two",
+    //     numBytes: 20,
+    //     numFrames: 10,
+    //     timeUnits: 3,
+    //     timeRan: 0,
+    //     status: 'Waiting',
+    //   },
+    //   { 
+    //     processId: "three",
+    //     numBytes: 8,
+    //     numFrames: 4,
+    //     timeUnits: 4,
+    //     timeRan: 0,
+    //     status: 'Waiting',
+    //   }
+    // ],
     currTime: 0,
 
     // new process form
@@ -189,24 +189,8 @@ class App extends Component {
     return [memory, pageTables]
   }
 
-  render() {
-    const {
-      currTime,
-      errorMsg,
-      hoverId,
-      physicalMemSize,
-      pageSize,
-      pageTables,
-      processId,
-      processes,
-      numBytes,
-      running,
-      memory,
-      memorySet,
-      timeUnits,
-      availFrames,
-    } = this.state
-
+  memoryBlocks = () => {
+    const { memory } = this.state
     let currId = null
     let start = 0
     const memBlocks = []
@@ -221,9 +205,28 @@ class App extends Component {
       currId = processId
     })
     memBlocks.push({ processId: currId, start, end: memory.length - 1 })
+    return memBlocks
+  }
 
+  render() {
+    const {
+      currTime,
+      errorMsg,
+      hoverId,
+      physicalMemSize,
+      pageSize,
+      pageTables,
+      processId,
+      processes,
+      numBytes,
+      running,
+      memorySet,
+      timeUnits,
+      availFrames,
+    } = this.state
+
+    const memBlocks = this.memoryBlocks()
     const runningProcesses = processes.filter( p => p.status === 'Running' )
-
     const totalPages = physicalMemSize / pageSize
     const availFramesHeight = Math.round(availFrames / totalPages * 500)
     const availFramesRounded = runningProcesses.length === 0 ? "rounded-t-2xl" : ""
@@ -479,7 +482,7 @@ class App extends Component {
 
             <div className="flex-col w-3/12 p-8">
               <h2 className="text-xl underline">Physical Memory</h2>
-              { memBlocks.map(({ start, end, processId }, i) => {
+              { memorySet && memBlocks.map(({ start, end, processId }, i) => {
                   const isLast = i === memBlocks.length - 1
                   const frames = end - start + 1
                   const height = Math.round(frames / totalPages * 500)
