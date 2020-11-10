@@ -56,6 +56,20 @@ class App extends Component {
 
   onAddProcess = () => {
     const { pageSize, processes, processId, numBytes, timeUnits } = this.state
+
+    if ( timeUnits <= 0 ) {
+      this.setState({ errorMsg: 'Process must run for at least 1 unit of time' })
+      return
+    } 
+    if ( numBytes <= 0 ) {
+      this.setState({ errorMsg: 'Process must be greater than 0 bytes' })
+      return
+    } 
+    if ( !processId ) {
+      this.setState({ errorMsg: 'Process missing process id' })
+      return
+    }
+
     this.setState({
       processes: [ ...processes, {
         processId,
@@ -74,18 +88,14 @@ class App extends Component {
   advanceSystemClock = () => {
     let { currTime, memory, pageTables } = this.state
     const [processes, allocateProcs, deallocateProcs, availFrames] = this.advanceProcesses()
-    console.log('alloc / dealloc', allocateProcs, deallocateProcs)
 
     const afterDealloc = this.deallocateMemory(memory, deallocateProcs, pageTables)
     memory = afterDealloc[0]
     pageTables = afterDealloc[1]
-    console.log('afterDealloc', memory, pageTables)
 
     const afterAlloc = this.allocateMemory(memory, allocateProcs, pageTables)
     memory = afterAlloc[0]
     pageTables = afterAlloc[1]
-    console.log('afteralloc', memory, pageTables)
-
 
     currTime++
     this.setState({
@@ -153,6 +163,7 @@ class App extends Component {
             break
           }
           [processId, numFrames] = processes[idx]
+          page = 0
         }
       }
     }
@@ -196,21 +207,26 @@ class App extends Component {
       availFrames,
     } = this.state
 
-    let currId
+    let currId = null
     let start = 0
     const memBlocks = []
     memory.forEach((processId, addr) => {
-      if (!currId) {
+      if (currId === null) {
         currId = processId
       }
-      
       if (processId !== currId) {
         memBlocks.push({ processId: currId, start, end: addr -1 })
         start = addr
-        currId = processId
       }
+      currId = processId
     })
     memBlocks.push({ processId: currId, start, end: memory.length - 1 })
+
+    const runningProcesses = processes.filter( p => p.status === 'Running' )
+
+    const totalPages = physicalMemSize / pageSize
+    const availFramesHeight = Math.round(availFrames / totalPages * 500)
+    const availFramesRounded = runningProcesses.length === 0 ? "rounded-t-2xl" : ""
 
     return(
       <div className="App">
@@ -220,7 +236,7 @@ class App extends Component {
               <h2 className="font-sans m-2">
                 Total Memory: 
                 { memorySet ?
-                  <span> { physicalMemSize } </span>
+                  <span className="rounded-lg bg-yellow-300 text-lg shadow px-2 py-1 m-2"> { physicalMemSize } </span>
                   :
                   <input type="text"
                     className="mx-2 rounded p-1 w-20"
@@ -236,7 +252,7 @@ class App extends Component {
               <h2 className="font-sans m-2">
                 Page Size:
                 { memorySet ?
-                  <span> { pageSize } </span>
+                  <span className="rounded-lg bg-yellow-300 text-lg shadow px-2 py-1 m-2"> { pageSize } </span>
                   :
                   <input type="text"
                     className="mx-2 rounded p-1 w-20"
@@ -252,12 +268,13 @@ class App extends Component {
 
               { memorySet &&
                 <h2 className="font-sans m-2">
-                  Available Pages: { availFrames }
+                  Available Pages: 
+                  <span className="rounded-lg bg-yellow-300 text-lg shadow px-2 py-1 m-2"> { availFrames } </span>
                 </h2>
               }
               { !memorySet &&
                 <button
-                  className="rounded-lg shadow bg-teal-300 hover:bg-blue-300 font-sans font-semibold underline w-20 px-4 py-2 mt-6"
+                  className="rounded-lg shadow bg-teal-300 hover:bg-blue-300 font-sans font-semibold underline w-20 px-2 py-1 mt-6"
                   onClick={() => {
                     if ( physicalMemSize <= 0 ) {
                       this.setState({ errorMsg: 'Physical memory must be greater than 0' })
@@ -353,23 +370,23 @@ class App extends Component {
               { processes.length > 0 &&
                 <table className="table-auto mt-4 w-full">
                   <tr>
-                    <th className="px-4 py-2">#</th>
-                    <th className="px-4 py-2">Id</th>
-                    <th className="px-4 py-2">Size (bytes)</th>
-                    <th className="px-4 py-2">Total Time</th>
-                    <th className="px-4 py-2">Run Time</th>
-                    <th className="px-4 py-2">Status</th>
+                    <th className="px-2 py1">#</th>
+                    <th className="px-2 py-1">Id</th>
+                    <th className="px-2 py-1">Size (bytes)</th>
+                    <th className="px-2 py-1">Total Time</th>
+                    <th className="px-2 py-1">Run Time</th>
+                    <th className="px-2 py-1">Status</th>
                   </tr>
                   { processes.map((process, i) => 
                     <tr key={i} 
                       className={`flex-row rounded w-24 p-2 m-2`}
                     >
-                      <td className="border px-4 py-2"> { i } </td>
-                      <td className="border px-4 py-2"> { process.processId } </td>
-                      <td className="border px-4 py-2"> { process.numBytes } </td>
-                      <td className="border px-4 py-2"> { process.timeUnits } </td>
-                      <td className="border px-4 py-2"> { process.timeRan } </td>
-                      <td className="border px-4 py-2"> { process.status } </td>
+                      <td className="border px-2 py-1"> { i } </td>
+                      <td className="border px-2 py-1"> { process.processId } </td>
+                      <td className="border px-2 py-1"> { process.numBytes } </td>
+                      <td className="border px-2 py-1"> { process.timeUnits } </td>
+                      <td className="border px-2 py-1"> { process.timeRan } </td>
+                      <td className="border px-2 py-1"> { process.status } </td>
                     </tr>
                   )}
                 </table>
@@ -389,44 +406,67 @@ class App extends Component {
               }
             </div>
 
-            <div className="flex-col w-4/12 p-8">
+            <div className="flex-col w-3/12 p-8 justify-center content-center items-center">
               <h2 className="text-xl underline">Logical Memory</h2>
-              { processes.filter( p => p.status === 'Running' ).map((process, i) => 
-                <div key={i} 
-                  className="flex-row rounded bg-blue-200 w-full p-2 m-2"
-                >
-                  <div>
-                    Id: { process.processId }
+              { runningProcesses.map((process, i) => {
+                const isLast = i === runningProcesses.length - 1
+                const isFull = availFrames === 0
+
+                const height = Math.round(process.numFrames / totalPages * 500)
+                let varStyle = i === 0 ? "rounded-t-2xl" : ""
+                if (isFull && isLast) {
+                  varStyle = "rounded-b-2xl"
+                }
+                if (!isFull || !isLast) {
+                  varStyle += " border-b-2 border-white"
+                }
+
+                return(
+                  <div key={i}
+                    style={{ height }}
+                    className={`flex flex-row bg-blue-300 p-2 mx-2 ${varStyle} shadow-lg justify-center content-center items-center overflow-scroll`}
+                  >
+                    <div className="flex flex-col font-medium text-justify">
+                      <div>
+                        Process: <span className="text-white">{ process.processId }</span>
+                      </div>
+                      <div>
+                        Size: <span className="text-white">{ process.numBytes }</span>
+                      </div>
+                      <div>
+                        Pages: <span className="text-white">{ process.numFrames }</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    Size: { process.numBytes } Bytes
-                  </div>
-                  <div>
-                    Pages: { process.numFrames }
-                  </div>
-                </div>
-              )}
+                )
+              })}
               { availFrames > 0 &&
-                <div className="flex-row rounded bg-gray-200 w-full p-2 m-2">
-                  <div>
-                    Size: { availFrames * pageSize } Bytes
-                  </div>
-                  <div>
-                    Pages: { availFrames }
+                <div style={{ height: availFramesHeight }}
+                  className={`flex flex-row bg-gray-400 p-2 mx-2 ${availFramesRounded} rounded-b-2xl shadow-lg justify-center content-center items-center overflow-scroll`}
+                >
+                  <div className="flex flex-col font-medium text-justify">
+                    <div>
+                      Size: <span className="text-white">{ availFrames * pageSize }</span>
+                    </div>
+                    <div>
+                      Pages: <span className="text-white">{ availFrames }</span>
+                    </div>
                   </div>
                 </div>
               }
             </div>
 
-            <div className="flex-col w-4/12 p-8">
+            <div className="flex-col w-3/12 p-8">
               <h2 className="text-xl underline">Page Tables</h2>
               { Object.entries( pageTables ).map(([processId, pageTable], i) => 
                 <div key={i}
-                  className="rounded bg-gray-200 p-2 m-2"
+                  className="rounded bg-yellow-300 shadow-lg p-2 m-2"
                   onMouseEnter={() => this.setState({ hoverId: processId })}
                   onMouseLeave={() => this.setState({ hoverId: undefined })}
                 >
-                  Process: { processId }
+                  <h2 className="font-semibold my-2">
+                    Process: <span className="text-blue-600">{ processId }</span>
+                  </h2>
                   { hoverId === processId && pageTable.map((table,j) => 
                     <div key={j}>
                       <span className="mx-2">Page: { table.page }</span>
@@ -437,26 +477,38 @@ class App extends Component {
               )}
             </div>
 
-            <div className="flex-col w-4/12 p-8">
+            <div className="flex-col w-3/12 p-8">
               <h2 className="text-xl underline">Physical Memory</h2>
-              { 
-                memBlocks.map((block, i) => 
-                  <div key={i} 
-                    className={`flex-row rounded bg-${block.processId ? 'blue' : 'gray'}-200 w-full p-2 m-2`}
-                  >
-                    { block.processId &&
-                      <div>
-                        { block.processId }
+              { memBlocks.map(({ start, end, processId }, i) => {
+                  const isLast = i === memBlocks.length - 1
+                  const frames = end - start + 1
+                  const height = Math.round(frames / totalPages * 500)
+                  let varStyle = i === 0 ? "rounded-t-2xl" : ""
+                  if (isLast) {
+                    varStyle += " rounded-b-2xl"
+                  }
+                  if (!isLast) {
+                    varStyle += " border-b-2 border-white"
+                  }
+
+                  return(
+                    <div key={i} 
+                      style={{ height }}
+                      className={`flex flex-row bg-${processId ? 'blue-300' : 'gray-400'} ${varStyle} p-2 mx-2 shadow-lg justify-center content-center items-center overflow-scroll`}
+                    >
+                      <div className="flex flex-col font-medium text-justify">
+                        { processId &&
+                          <div>
+                            Process: <span className="text-white">{ processId }</span>
+                          </div>
+                        }
+                        <div>
+                          Frames: <span className="text-white">{ frames }</span>
+                        </div>
                       </div>
-                    }
-                    <div>
-                      Start: { block.start }
                     </div>
-                    <div>
-                      End: { block.end }
-                    </div>
-                  </div>
-                )
+                  )
+                })
               }
             </div>
           </div>
