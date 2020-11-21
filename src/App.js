@@ -4,48 +4,65 @@ import './tailwind.output.css'
 
 class App extends Component {
   state = {
-    physicalMemSize: undefined,
-    pageSize: undefined,
-    availFrames: undefined,
-    memorySet: false,
-    // physicalMemSize: 40,
-    // pageSize: 2,
-    // availFrames: 20,
-    // memorySet: true,
+    // physicalMemSize: undefined,
+    // pageSize: undefined,
+    // availFrames: undefined,
+    // memorySet: false,
+    physicalMemSize: 64,
+    pageSize: 4,
+    availFrames: 16,
+    memorySet: true,
     running: false,
 
     errorMsg: undefined,
     pageTables: {},
     hoverId: undefined,
-    memory: [],
-    processes: [],
-    // memory: new Array(20),
-    // processes: [
-    //   { 
-    //     processId: "one",
-    //     numBytes: 20,
-    //     numFrames: 10,
-    //     timeUnits: 2,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   },
-    //   { 
-    //     processId: "two",
-    //     numBytes: 20,
-    //     numFrames: 10,
-    //     timeUnits: 3,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   },
-    //   { 
-    //     processId: "three",
-    //     numBytes: 8,
-    //     numFrames: 4,
-    //     timeUnits: 4,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   }
-    // ],
+    hoverMemoryId: undefined,
+    // memory: [],
+    // processes: [],
+    memory: new Array(16),
+    processes: [
+      { 
+        processId: "excel",
+        numBytes: 12,
+        numFrames: 3,
+        timeUnits: 3,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "email",
+        numBytes: 22,
+        numFrames: 6,
+        timeUnits: 5,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "browser",
+        numBytes: 34,
+        numFrames: 9,
+        timeUnits: 8,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "music",
+        numBytes: 24,
+        numFrames: 6,
+        timeUnits: 12,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "IO",
+        numBytes: 18,
+        numFrames: 5,
+        timeUnits: 4,
+        timeRan: 0,
+        status: 'Waiting',
+      }
+    ],
     currTime: 0,
 
     // new process form
@@ -164,6 +181,7 @@ class App extends Component {
           }
           [processId, numFrames] = processes[idx]
           page = 0
+          currAlloc = 0
         }
       }
     }
@@ -177,7 +195,6 @@ class App extends Component {
     const ids = processes.map( ([id,_]) => id )
     // remove from page table
     ids.forEach( id => {
-      console.log('deleting', id)
       delete pageTables[id]
     })
     // deallocate memory
@@ -194,17 +211,18 @@ class App extends Component {
     let currId = null
     let start = 0
     const memBlocks = []
-    memory.forEach((processId, addr) => {
+    for (let addr=0; addr<memory.length; addr++) {
+      const processId = memory[addr]
       if (currId === null) {
         currId = processId
       }
       if (processId !== currId) {
-        memBlocks.push({ processId: currId, start, end: addr -1 })
+        memBlocks.push({ processId: currId, start, end: addr-1 })
         start = addr
       }
       currId = processId
-    })
-    memBlocks.push({ processId: currId, start, end: memory.length - 1 })
+    }
+    memBlocks.push({ processId: currId, start, end: memory.length-1 })
     return memBlocks
   }
 
@@ -213,6 +231,7 @@ class App extends Component {
       currTime,
       errorMsg,
       hoverId,
+      hoverMemoryId,
       physicalMemSize,
       pageSize,
       pageTables,
@@ -230,6 +249,7 @@ class App extends Component {
     const totalPages = physicalMemSize / pageSize
     const availFramesHeight = Math.round(availFrames / totalPages * 500)
     const availFramesRounded = runningProcesses.length === 0 ? "rounded-t-2xl" : ""
+    const availOverflow = hoverMemoryId === "Logical-Avail" ? "" : "overflow-hidden"
 
     return(
       <div className="App">
@@ -380,18 +400,27 @@ class App extends Component {
                     <th className="px-2 py-1">Run Time</th>
                     <th className="px-2 py-1">Status</th>
                   </tr>
-                  { processes.map((process, i) => 
-                    <tr key={i} 
-                      className={`flex-row rounded w-24 p-2 m-2`}
-                    >
-                      <td className="border px-2 py-1"> { i } </td>
-                      <td className="border px-2 py-1"> { process.processId } </td>
-                      <td className="border px-2 py-1"> { process.numBytes } </td>
-                      <td className="border px-2 py-1"> { process.timeUnits } </td>
-                      <td className="border px-2 py-1"> { process.timeRan } </td>
-                      <td className="border px-2 py-1"> { process.status } </td>
-                    </tr>
-                  )}
+                  { processes.map((process, i) => {
+                    let bg = "bg-gray-400"
+                    if (process.status === "Running") {
+                      bg = "bg-green-400"
+                    }
+                    if (process.status === "Finished") {
+                      bg = "bg-blue-300"
+                    }
+                    return(
+                      <tr key={i} 
+                        className={`flex-row rounded w-24 p-2 m-2 ${bg}`}
+                      >
+                        <td className="border px-2 py-1"> { i+1 } </td>
+                        <td className="border px-2 py-1"> { process.processId } </td>
+                        <td className="border px-2 py-1"> { process.numBytes } </td>
+                        <td className="border px-2 py-1"> { process.timeUnits } </td>
+                        <td className="border px-2 py-1"> { process.timeRan } </td>
+                        <td className="border px-2 py-1"> { process.status } </td>
+                      </tr>
+                    )
+                  })}
                 </table>
               }
 
@@ -423,11 +452,17 @@ class App extends Component {
                 if (!isFull || !isLast) {
                   varStyle += " border-b-2 border-white"
                 }
+                const memoryOverflowId = `Logical-Process-${i}`
+                if (hoverMemoryId !== memoryOverflowId) {
+                  varStyle += " overflow-hidden"
+                }
 
                 return(
                   <div key={i}
                     style={{ height }}
-                    className={`flex flex-row bg-blue-300 p-2 mx-2 ${varStyle} shadow-lg justify-center content-center items-center overflow-scroll`}
+                    className={`flex flex-row bg-blue-300 p-2 mx-2 ${varStyle} shadow-lg justify-center content-center items-center`}
+                    onMouseEnter={() => this.setState({ hoverMemoryId: memoryOverflowId })}
+                    onMouseLeave={() => this.setState({ hoverMemoryId: undefined })}
                   >
                     <div className="flex flex-col font-medium text-justify">
                       <div>
@@ -445,7 +480,9 @@ class App extends Component {
               })}
               { availFrames > 0 &&
                 <div style={{ height: availFramesHeight }}
-                  className={`flex flex-row bg-gray-400 p-2 mx-2 ${availFramesRounded} rounded-b-2xl shadow-lg justify-center content-center items-center overflow-scroll`}
+                  className={`flex flex-row bg-gray-400 p-2 mx-2 ${availFramesRounded} rounded-b-2xl shadow-lg justify-center content-center items-center ${availOverflow}`}
+                  onMouseEnter={() => this.setState({ hoverMemoryId: "Logical-Avail" })}
+                  onMouseLeave={() => this.setState({ hoverMemoryId: undefined })}
                 >
                   <div className="flex flex-col font-medium text-justify">
                     <div>
@@ -493,11 +530,17 @@ class App extends Component {
                   if (!isLast) {
                     varStyle += " border-b-2 border-white"
                   }
+                  const memoryOverflowId = `Physical-Avail-${i}`
+                  if (hoverMemoryId !== memoryOverflowId) {
+                    varStyle += " overflow-hidden"
+                  }
 
                   return(
                     <div key={i} 
                       style={{ height }}
-                      className={`flex flex-row bg-${processId ? 'blue-300' : 'gray-400'} ${varStyle} p-2 mx-2 shadow-lg justify-center content-center items-center overflow-scroll`}
+                      className={`flex flex-row bg-${processId ? 'blue-300' : 'gray-400'} ${varStyle} p-2 mx-2 shadow-lg justify-center content-center items-center`}
+                      onMouseEnter={() => this.setState({ hoverMemoryId: memoryOverflowId })}
+                      onMouseLeave={() => this.setState({ hoverMemoryId: undefined })}
                     >
                       <div className="flex flex-col font-medium text-justify">
                         { processId &&
@@ -505,6 +548,9 @@ class App extends Component {
                             Process: <span className="text-white">{ processId }</span>
                           </div>
                         }
+                        <div>
+                          Size: <span className="text-white">{ frames * pageSize }</span>
+                        </div>
                         <div>
                           Frames: <span className="text-white">{ frames }</span>
                         </div>
