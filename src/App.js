@@ -14,30 +14,31 @@ const DemoState = {
     errorMsg: undefined,
     currTime: 0,
     running: false,
+    logs: [],
 
     // memory mgmt
     pageTables: {},
     memory: new Array(16),
     processes: [
       { 
-        processId: "excel",
+        processId: "email",
         numBytes: 12,
         numFrames: 3,
-        timeUnits: 3,
-        timeRan: 0,
-        status: 'Waiting',
-      },
-      { 
-        processId: "email",
-        numBytes: 22,
-        numFrames: 6,
         timeUnits: 5,
         timeRan: 0,
         status: 'Waiting',
       },
       { 
+        processId: "excel",
+        numBytes: 32,
+        numFrames: 8,
+        timeUnits: 3,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
         processId: "browser",
-        numBytes: 34,
+        numBytes: 36,
         numFrames: 9,
         timeUnits: 8,
         timeRan: 0,
@@ -45,16 +46,16 @@ const DemoState = {
       },
       { 
         processId: "music",
-        numBytes: 24,
-        numFrames: 6,
+        numBytes: 16,
+        numFrames: 4,
         timeUnits: 12,
         timeRan: 0,
         status: 'Waiting',
       },
       { 
         processId: "IO",
-        numBytes: 18,
-        numFrames: 5,
+        numBytes: 26,
+        numFrames: 7,
         timeUnits: 4,
         timeRan: 0,
         status: 'Waiting',
@@ -73,6 +74,7 @@ const ResetState = {
   errorMsg: undefined,
   currTime: 0,
   running: false,
+  logs: [],
 
   // memory mgmt
   pageTables: {},
@@ -101,6 +103,7 @@ class App extends Component {
     errorMsg: undefined,
     currTime: 0,
     running: false,
+    logs: [],
 
     // new process form
     processId: '',
@@ -148,8 +151,20 @@ class App extends Component {
   }
 
   advanceSystemClock = () => {
-    let { currTime, memory, pageTables } = this.state
+    let { currTime, memory, pageTables, logs } = this.state
     const [processes, allocateProcs, deallocateProcs, availFrames] = this.advanceProcesses()
+
+    logs = [
+      ...logs,
+      ...deallocateProcs.map(([procId,procFrames])=> ({
+        msg: `Deallocating ${procFrames} frames for ${procId}`,
+        time: currTime,
+      })),
+      ...allocateProcs.map(([procId,procFrames])=> ({
+        msg: `Allocating ${procFrames} frames for ${procId}`,
+        time: currTime,
+      })),
+    ]
 
     const afterDealloc = this.deallocateMemory(memory, deallocateProcs, pageTables)
     memory = afterDealloc[0]
@@ -161,6 +176,7 @@ class App extends Component {
 
     currTime++
     this.setState({
+      logs,
       memory,
       pageTables,
       processes,
@@ -277,6 +293,7 @@ class App extends Component {
       errorMsg,
       hoverId,
       hoverMemoryId,
+      logs,
       physicalMemSize,
       pageSize,
       pageTables,
@@ -296,7 +313,7 @@ class App extends Component {
     const availFramesRounded = runningProcesses.length === 0 ? "rounded-t-2xl" : ""
     const availOverflow = hoverMemoryId === "Logical-Avail" ? "" : "overflow-hidden"
 
-    console.log('render', this.state)
+    console.log('render', this.state.memory.toString())
 
     return(
       <div className="App">
@@ -636,6 +653,17 @@ class App extends Component {
                   )
                 })
               }
+            </div>
+          </div>
+
+          <div className="flex flex-row justify-center content-center items-center">
+            <div className="flex-col p-8">
+              <h2 className="text-xl underline">Memory Logs</h2>
+              { logs.reverse().map( log => (
+                <p>
+                  @ {log.time} - { log.msg }
+                </p>
+              ))}
             </div>
           </div>
         </div>
