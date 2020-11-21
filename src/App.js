@@ -1,69 +1,106 @@
 import './App.css';
 import { Component } from 'react'
 import './tailwind.output.css'
+import _ from "lodash"
+
+const DemoState = {
+    // memory settings
+    physicalMemSize: 64,
+    pageSize: 4,
+    availFrames: 16,
+    memorySet: true,
+
+    // runtime
+    errorMsg: undefined,
+    currTime: 0,
+    running: false,
+
+    // memory mgmt
+    pageTables: {},
+    memory: new Array(16),
+    processes: [
+      { 
+        processId: "excel",
+        numBytes: 12,
+        numFrames: 3,
+        timeUnits: 3,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "email",
+        numBytes: 22,
+        numFrames: 6,
+        timeUnits: 5,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "browser",
+        numBytes: 34,
+        numFrames: 9,
+        timeUnits: 8,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "music",
+        numBytes: 24,
+        numFrames: 6,
+        timeUnits: 12,
+        timeRan: 0,
+        status: 'Waiting',
+      },
+      { 
+        processId: "IO",
+        numBytes: 18,
+        numFrames: 5,
+        timeUnits: 4,
+        timeRan: 0,
+        status: 'Waiting',
+      }
+    ],
+}
+
+const ResetState = {
+  // memory settings
+  physicalMemSize: 0,
+  pageSize: 0,
+  availFrames: 0,
+  memorySet: false,
+
+  // runtime
+  errorMsg: undefined,
+  currTime: 0,
+  running: false,
+
+  // memory mgmt
+  pageTables: {},
+  memory: [],
+  processes: [],
+}
 
 class App extends Component {
   state = {
+    // memory settings
     physicalMemSize: undefined,
     pageSize: undefined,
     availFrames: undefined,
     memorySet: false,
-    // physicalMemSize: 64,
-    // pageSize: 4,
-    // availFrames: 16,
-    // memorySet: true,
-    // running: false,
 
-    errorMsg: undefined,
-    pageTables: {},
+    // ui
     hoverId: undefined,
     hoverMemoryId: undefined,
+
+    // memory mgmt
+    pageTables: {},
     memory: [],
     processes: [],
-    // memory: new Array(16),
-    // processes: [
-    //   { 
-    //     processId: "excel",
-    //     numBytes: 12,
-    //     numFrames: 3,
-    //     timeUnits: 3,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   },
-    //   { 
-    //     processId: "email",
-    //     numBytes: 22,
-    //     numFrames: 6,
-    //     timeUnits: 5,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   },
-    //   { 
-    //     processId: "browser",
-    //     numBytes: 34,
-    //     numFrames: 9,
-    //     timeUnits: 8,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   },
-    //   { 
-    //     processId: "music",
-    //     numBytes: 24,
-    //     numFrames: 6,
-    //     timeUnits: 12,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   },
-    //   { 
-    //     processId: "IO",
-    //     numBytes: 18,
-    //     numFrames: 5,
-    //     timeUnits: 4,
-    //     timeRan: 0,
-    //     status: 'Waiting',
-    //   }
-    // ],
+
+    // runtime
+    errorMsg: undefined,
     currTime: 0,
+    running: false,
 
     // new process form
     processId: '',
@@ -100,6 +137,14 @@ class App extends Component {
       numBytes: 0,
       timeUnits: 0,
     })
+  }
+
+  onDemo = () => {
+    this.setState(Object.assign(this.state, _.cloneDeep(DemoState)))
+  }
+
+  onReset = () => {
+    this.setState(Object.assign(this.state, _.cloneDeep(ResetState)))
   }
 
   advanceSystemClock = () => {
@@ -251,9 +296,22 @@ class App extends Component {
     const availFramesRounded = runningProcesses.length === 0 ? "rounded-t-2xl" : ""
     const availOverflow = hoverMemoryId === "Logical-Avail" ? "" : "overflow-hidden"
 
+    console.log('render', this.state)
+
     return(
       <div className="App">
         <div className="flex flex-col w-full">
+          <div className="flex flex-row w-full">
+            <div className="flex flex-col w-full justify-center content-center items-center bg-yellow-300 p-8 m-4 shadow">
+              <h1 className="font-sans font-medium text-xl m-2">
+                Paging Memory Management Simulator
+              </h1>
+              <p className="mt-8">
+                Simulates logical and physical memory usage for various sequences of processes using a paging memory management scheme.
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-row w-full bg-indigo-300 p-8">
             <div className="flex flex-col w-full justify-center content-center items-center">
               <h2 className="font-sans m-2">
@@ -295,34 +353,53 @@ class App extends Component {
                   <span className="rounded-lg bg-yellow-300 text-lg shadow px-2 py-1 m-2"> { availFrames } </span>
                 </h2>
               }
-              { !memorySet &&
+
+              <div className="flex flex-row">
+                { !memorySet &&
+                  <button
+                    className="rounded-lg shadow bg-teal-300 hover:bg-blue-300 font-sans font-semibold underline w-20 px-2 py-1 m-6"
+                    onClick={() => {
+                      if ( physicalMemSize <= 0 ) {
+                        this.setState({ errorMsg: 'Physical memory must be greater than 0' })
+                        return
+                      }
+                      if ( pageSize <= 0 ) {
+                        this.setState({ errorMsg: 'Page size must be greater than 0' })
+                        return
+                      }
+                      if ( pageSize % 2 !== 0 ) {
+                        this.setState({ errorMsg: 'Page size must be a multiple of 2' })
+                        return
+                      }
+                      const totalFrames = physicalMemSize / pageSize
+                      this.setState({
+                        memorySet: true,
+                        memory: new Array(totalFrames),
+                        totalFrames,
+                        availFrames: totalFrames,
+                      })
+                    }}
+                  >
+                    Enter
+                  </button>
+                }
+
+                { !running &&
+                  <button
+                    className="rounded-lg shadow bg-teal-300 hover:bg-blue-300 font-sans font-semibold underline w-20 px-2 py-1 m-6"
+                    onClick={ this.onDemo }
+                  >
+                    Demo
+                  </button>
+                }
+
                 <button
-                  className="rounded-lg shadow bg-teal-300 hover:bg-blue-300 font-sans font-semibold underline w-20 px-2 py-1 mt-6"
-                  onClick={() => {
-                    if ( physicalMemSize <= 0 ) {
-                      this.setState({ errorMsg: 'Physical memory must be greater than 0' })
-                      return
-                    }
-                    if ( pageSize <= 0 ) {
-                      this.setState({ errorMsg: 'Page size must be greater than 0' })
-                      return
-                    }
-                    if ( pageSize % 2 !== 0 ) {
-                      this.setState({ errorMsg: 'Page size must be a multiple of 2' })
-                      return
-                    }
-                    const totalFrames = physicalMemSize / pageSize
-                    this.setState({
-                      memorySet: true,
-                      memory: new Array(totalFrames),
-                      totalFrames,
-                      availFrames: totalFrames,
-                    })
-                  }}
+                  className="rounded-lg shadow bg-orange-300 hover:bg-blue-300 font-sans font-semibold underline w-20 px-2 py-1 m-6"
+                  onClick={ this.onReset }
                 >
-                  Enter
+                  Reset
                 </button>
-              }
+              </div>
             </div>
           </div>
 
