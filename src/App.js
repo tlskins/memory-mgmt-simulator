@@ -14,6 +14,8 @@ const DemoState = {
     errorMsg: undefined,
     currTime: 0,
     running: false,
+    playing: false,
+    finished: false,
     logs: [],
 
     // memory mgmt
@@ -74,6 +76,8 @@ const ResetState = {
   errorMsg: undefined,
   currTime: 0,
   running: false,
+  playing: false,
+  finished: false,
   logs: [],
 
   // memory mgmt
@@ -103,6 +107,8 @@ class App extends Component {
     errorMsg: undefined,
     currTime: 0,
     running: false,
+    playing: false,
+    finished: false,
     logs: [],
 
     // new process form
@@ -110,6 +116,7 @@ class App extends Component {
     numBytes: 0,
     timeUnits: 0,
   }
+  timer = undefined
 
   onAddProcess = () => {
     const { pageSize, processes, processId, numBytes, timeUnits } = this.state
@@ -143,11 +150,45 @@ class App extends Component {
   }
 
   onDemo = () => {
+    if ( this.timer ) {
+      clearTimeout( this.searchTimer )
+    }
+    this.timer = undefined
     this.setState(Object.assign(this.state, _.cloneDeep(DemoState)))
   }
 
   onReset = () => {
+    if ( this.timer ) {
+      clearTimeout( this.searchTimer )
+    }
+    this.timer = undefined
     this.setState(Object.assign(this.state, _.cloneDeep(ResetState)))
+  }
+
+  onPlay = () => {
+    this.setState({ running: true, playing: true, finished: false })
+    this.timerSystemClock()
+  }
+
+  onStop = () => {
+    if ( this.timer ) {
+      clearTimeout( this.searchTimer )
+    }
+    this.timer = undefined
+    this.setState({ running: false, playing: false })
+  }
+
+  timerSystemClock = () => {
+    if ( this.timer ) {
+      clearTimeout( this.searchTimer )
+    }
+    this.timer = undefined
+    this.timer = setTimeout(() => {
+      const playing = this.advanceSystemClock()
+      if (playing) {
+        this.timerSystemClock()
+      }
+    }, 1800 )
   }
 
   advanceSystemClock = () => {
@@ -173,16 +214,22 @@ class App extends Component {
     const afterAlloc = this.allocateMemory(memory, allocateProcs, pageTables)
     memory = afterAlloc[0]
     pageTables = afterAlloc[1]
+    const finished = processes.every( proc => proc.status === "Finished")
+    const playing = this.state.playing ? !finished : false
 
     currTime++
     this.setState({
+      availFrames,
+      currTime,
+      finished,
       logs,
       memory,
       pageTables,
+      playing,
       processes,
-      availFrames,
-      currTime,
     })
+
+    return playing
   }
 
   advanceProcesses = () => {
@@ -297,6 +344,7 @@ class App extends Component {
       physicalMemSize,
       pageSize,
       pageTables,
+      playing,
       processId,
       processes,
       numBytes,
@@ -312,8 +360,6 @@ class App extends Component {
     const availFramesHeight = Math.round(availFrames / totalPages * 500)
     const availFramesRounded = runningProcesses.length === 0 ? "rounded-t-2xl" : ""
     const availOverflow = hoverMemoryId === "Logical-Avail" ? "" : "overflow-hidden"
-
-    console.log('render', this.state.memory.toString())
 
     return(
       <div className="App">
@@ -416,6 +462,24 @@ class App extends Component {
                 >
                   Reset
                 </button>
+
+                { (memorySet && !playing) &&
+                  <button
+                    className="rounded-lg shadow bg-green-400 hover:bg-blue-300 font-sans font-semibold underline w-20 px-2 py-1 m-6"
+                    onClick={ this.onPlay }
+                  >
+                    Play
+                  </button>
+                }
+
+                { playing &&
+                  <button
+                    className="rounded-lg shadow bg-green-400 hover:bg-red-400 font-sans font-semibold underline w-20 px-2 py-1 m-6"
+                    onClick={ this.onStop }
+                  >
+                    Stop
+                  </button>
+                }
               </div>
             </div>
           </div>
@@ -432,7 +496,7 @@ class App extends Component {
 
           <div className="flex flex-row">
             <div className="flex-col w-3/12 p-8">
-              <h2 className="text-xl underline">Process Queue</h2>
+              <h2 className="text-xl underline">FIFO Process Queue</h2>
               { (memorySet && !running) &&
                 <div>
                   <div className="flex flex-row m-2">
@@ -599,7 +663,7 @@ class App extends Component {
                   onMouseLeave={() => this.setState({ hoverId: undefined })}
                 >
                   <h2 className="font-semibold my-2">
-                    Process: <span className="text-blue-600">{ processId }</span>
+                    Process: <span className="text-blue-600 underline">{ processId }</span>
                   </h2>
                   { hoverId === processId && pageTable.map((table,j) => 
                     <div key={j}>
