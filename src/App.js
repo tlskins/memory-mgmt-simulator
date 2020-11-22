@@ -195,18 +195,6 @@ class App extends Component {
     let { currTime, memory, pageTables, logs } = this.state
     const [processes, allocateProcs, deallocateProcs, availFrames] = this.advanceProcesses()
 
-    logs = [
-      ...logs,
-      ...deallocateProcs.map(([procId,procFrames])=> ({
-        msg: `Deallocating ${procFrames} frames for ${procId}`,
-        time: currTime,
-      })),
-      ...allocateProcs.map(([procId,procFrames])=> ({
-        msg: `Allocating ${procFrames} frames for ${procId}`,
-        time: currTime,
-      })),
-    ]
-
     const afterDealloc = this.deallocateMemory(memory, deallocateProcs, pageTables)
     memory = afterDealloc[0]
     pageTables = afterDealloc[1]
@@ -220,6 +208,18 @@ class App extends Component {
     if (currTime !== 0 || this.state.processes.some( proc => proc.status !== "Waiting")) {
       currTime++
     }
+
+    logs = [
+      ...logs,
+      ...deallocateProcs.map(([procId,procFrames])=> ({
+        msg: `Deallocating ${procFrames} frames for ${procId}`,
+        time: currTime,
+      })),
+      ...allocateProcs.map(([procId,procFrames])=> ({
+        msg: `Allocating ${procFrames} frames for ${procId}`,
+        time: currTime,
+      })),
+    ]
 
     this.setState({
       availFrames,
@@ -668,7 +668,6 @@ class App extends Component {
                 <div key={i}
                   className="rounded bg-yellow-300 shadow-lg p-2 m-2"
                   onMouseEnter={() => this.setState({ hoverId: processId })}
-                  onMouseLeave={() => this.setState({ hoverId: undefined })}
                 >
                   <h2 className="font-semibold my-2">
                     Process: <span className="text-blue-600 underline">{ processId }</span>
