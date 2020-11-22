@@ -217,7 +217,10 @@ class App extends Component {
     const finished = processes.every( proc => proc.status === "Finished")
     const playing = this.state.playing ? !finished : false
 
-    currTime++
+    if (currTime !== 0 || this.state.processes.some( proc => proc.status !== "Waiting")) {
+      currTime++
+    }
+
     this.setState({
       availFrames,
       currTime,
@@ -540,7 +543,7 @@ class App extends Component {
                         this.setState({ errorMsg: 'Must have at least 1 process to run' })
                         return
                       }
-                      this.setState({ running: true })
+                      this.setState({ running: true }, this.advanceSystemClock)
                     }}
                   >
                     Run
