@@ -373,8 +373,13 @@ class App extends Component {
                 Paging Memory Management Simulator
               </h1>
               <p className="mt-8">
-                Simulates logical and physical memory usage for various sequences of processes using a paging memory management scheme.
+                Simulates logical and physical memory usage for sequences of processes using a paging memory management scheme.
               </p>
+              <a href="https://github.com/tlskins/memory-mgmt-simulator"
+                className="underline text-blue-700 mt-4"
+              >
+                https://github.com/tlskins/memory-mgmt-simulator
+              </a>
             </div>
           </div>
 
@@ -725,7 +730,7 @@ class App extends Component {
 
           <div className="flex flex-row justify-center content-center items-center">
             <div className="flex-col p-8">
-              <h2 className="text-xl underline">Memory Logs</h2>
+              <h2 className="text-xl underline">Memory Allocation Logs</h2>
               { logs.reverse().map( log => (
                 <p>
                   @ {log.time} - { log.msg }
