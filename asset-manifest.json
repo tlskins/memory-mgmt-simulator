@@ -1,0 +1,22 @@
+{
+  "files": {
+    "main.css": "/memory-mgmt-simulator/static/css/main.c68d408a.chunk.css",
+    "main.js": "/memory-mgmt-simulator/static/js/main.e42c9365.chunk.js",
+    "main.js.map": "/memory-mgmt-simulator/static/js/main.e42c9365.chunk.js.map",
+    "runtime-main.js": "/memory-mgmt-simulator/static/js/runtime-main.334233f0.js",
+    "runtime-main.js.map": "/memory-mgmt-simulator/static/js/runtime-main.334233f0.js.map",
+    "static/js/2.7fd28b84.chunk.js": "/memory-mgmt-simulator/static/js/2.7fd28b84.chunk.js",
+    "static/js/2.7fd28b84.chunk.js.map": "/memory-mgmt-simulator/static/js/2.7fd28b84.chunk.js.map",
+    "static/js/3.b3b1a375.chunk.js": "/memory-mgmt-simulator/static/js/3.b3b1a375.chunk.js",
+    "static/js/3.b3b1a375.chunk.js.map": "/memory-mgmt-simulator/static/js/3.b3b1a375.chunk.js.map",
+    "index.html": "/memory-mgmt-simulator/index.html",
+    "static/css/main.c68d408a.chunk.css.map": "/memory-mgmt-simulator/static/css/main.c68d408a.chunk.css.map",
+    "static/js/2.7fd28b84.chunk.js.LICENSE.txt": "/memory-mgmt-simulator/static/js/2.7fd28b84.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.334233f0.js",
+    "static/js/2.7fd28b84.chunk.js",
+    "static/css/main.c68d408a.chunk.css",
+    "static/js/main.e42c9365.chunk.js"
+  ]
+}
