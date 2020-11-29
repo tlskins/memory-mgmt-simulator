@@ -18,6 +18,8 @@
     "prestart": "npm run build:tailwind",
     "prebuild": "npm run build:tailwind",
     "start": "react-scripts start",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -39,5 +41,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "devDependencies": {
+    "gh-pages": "^3.1.0"
+  },
+  "homepage": "http://tlskins.github.io/memory-mgmt-simulator"
 }
