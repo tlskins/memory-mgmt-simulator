@@ -2,6 +2,8 @@ import './App.css';
 import { Component } from 'react'
 import './tailwind.output.css'
 import _ from "lodash"
+import CSVReader from 'react-csv-reader'
+
 
 const DemoState = {
     // memory settings
@@ -176,6 +178,21 @@ class App extends Component {
     }
     this.timer = undefined
     this.setState({ running: false, playing: false })
+  }
+
+  onFileLoaded = data => {
+    const { pageSize } = this.state
+
+    const processes = data.map( row => ({
+      processId: row[0].toString(),
+      numBytes: parseInt(row[1]),
+      numFrames: Math.ceil( parseInt(row[1]) / pageSize ),
+      timeUnits: parseInt(row[2]),
+      timeRan: 0,
+      status: 'Waiting',
+    }))
+
+    this.setState({ processes })
   }
 
   timerSystemClock = () => {
@@ -489,6 +506,28 @@ class App extends Component {
                   </button>
                 }
               </div>
+
+              { (!running && memorySet) &&
+                <div className="flex flex-col my-4">
+                  <div>
+                    <CSVReader
+                      cssClass="flex flex-col"
+                      cssInputClass="bg-white border"
+                      onFileLoaded={this.onFileLoaded}
+                      onError={e => console.log('csv err', e)}
+                      parserOptions={{
+                        header: false,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                      }}
+                    />
+                  </div>
+                  <p>
+                    Upload processes via CSV file with no header row<br />
+                    Columns: (1) process id, (2) size in bytes, (3) time units
+                  </p>
+                </div>
+              }
             </div>
           </div>
 
